@@ -70,6 +70,21 @@ def loadTrades(pair, fromDate, toDate, interval):
     df['id'] = df['id'].astype(int)
     df['price'] = df['price'].astype(float)
     df['qty'] = df['qty'].astype(float)
+    df['time'] = pd.to_datetime(df['time'], unit='ms')
     df['is_buyer_maker'] = df['is_buyer_maker'].astype(bool)
     df['is_best_match'] = df['is_best_match'].astype(bool)
+    df.set_index('time')
     return df
+
+def getInfo():
+    with urllib.request.urlopen(f'https://api.binance.com/api/v3/exchangeInfo') as connection:
+        return json.load(connection)
+
+def getSymbols(pred=None):
+    symbols = []
+    for symbol in getInfo()['symbols']:
+        symbols.append(symbol['symbol'])
+    if pred is not None:
+        symbols = [ sym for sym in symbols if pred(sym)]
+    symbols.sort()
+    return symbols
