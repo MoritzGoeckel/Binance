@@ -7,6 +7,7 @@ import os
 import os.path
 import zipfile
 from enum import Enum
+import numba
 
 class Interval(Enum):
     monthly = 0
@@ -73,7 +74,7 @@ def loadTrades(pair, fromDate, toDate, interval):
     df['time'] = pd.to_datetime(df['time'], unit='ms')
     df['is_buyer_maker'] = df['is_buyer_maker'].astype(bool)
     df['is_best_match'] = df['is_best_match'].astype(bool)
-    df.set_index('time')
+    df = df.set_index('time')
     return df
 
 def getInfo():
@@ -88,3 +89,20 @@ def getSymbols(pred=None):
         symbols = [ sym for sym in symbols if pred(sym)]
     symbols.sort()
     return symbols
+
+@numba.jit
+def last(elems):
+    return elems[-1]
+
+@numba.jit
+def sum(elems):
+    return elems.sum()
+
+def applyCustomFn(pdRolling, fn):
+    return pdRolling.apply(fn, engine="numba", engine_kwargs={"parallel": True}, raw=True)
+
+def reSampleTrades(tradesDf, interval):
+    simplified = pd.DataFrame()
+    simplified['price'] = tradesDf['price'].resample(interval).last()
+    simplified['qty'] = tradesDf['qty'].resample(interval).sum()
+    return simplified
